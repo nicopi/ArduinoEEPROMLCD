@@ -9,7 +9,7 @@ LiquidCrystal lcd(12, 11, 2, 7, 8, 9, 10);
 
 
 const byte DEVADDR = 0x50; //Address of the EEPROM
-byte msg[16]; //
+byte msg[2]; //
 
 int val=0; //Contains the analog data on pin 
 
@@ -88,10 +88,8 @@ void setup(){
   pinMode(readbuttonPin, INPUT);
   pinMode(writebuttonPin, INPUT);
 
-
   // initialize the serial communications:
   Serial.begin(9600);
-
   Wire.begin();
 
   // print a welcome message and wait 2 seconds
@@ -104,32 +102,27 @@ void loop()
 {
   //Controls the read button
   if(digitalRead(readbuttonPin)==HIGH){
-    byte buffer[16];
-    char text[16];
+    byte buffer[2];
+    int val;
     //Read from the EEPROM
     eeprom_read_buffer(DEVADDR, 0, buffer, sizeof(buffer));
-    for (int i=0;i<16;i++)
-      text[i]=buffer[i];
+    val=buffer[1];
+    val=((val << 8) | buffer[0]);
+
     //print the read data on Serial
-    Serial.println(String(text));
+    Serial.println(String(val));
     //write the EEPROM read value on the LCD display
-    LCDprint(String(text));
+    LCDprint(String(val));
     delay(1500);
   }
 
   //Controls the write button
   if(digitalRead(writebuttonPin)==HIGH){
-    //Cast val (integet) to a String
-    String tstval=String(val);
-    //set al chars of msg to the empty char ' '
-    for(int i=0;i<16;i++){
-      msg[i]=' ';
-    }
-
-    for(int i=0;i<tstval.length();i++){
-      msg[i]=tstval.charAt(i);
-    }
     //Write data to EEPROM
+    msg[0] = (byte) (val & 0xFF);
+    msg[1] = (byte) ((val >> 8) & 0xFF);
+
+    //write data to EEPROM
     eeprom_write_page(DEVADDR, 0x000, msg, sizeof(msg));
     Serial.println("Memory written");
     LCDprint("Memory written.");
@@ -149,3 +142,4 @@ void loop()
   //write the read value on the LCD display
   LCDprint(String(val));
 }
+
