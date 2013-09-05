@@ -1,61 +1,29 @@
+
 //Copyright(c) 2013 Nicola Piovesan
 //This program allow Arduino to read an analog value, print it on a display and write/read it on/from an external EEPROM.
+//You can find the Seeprom library on https://github.com/nicopi/Seeprom
 
 #include <LiquidCrystal.h>
+#include <Seeprom.h>
 #include <Wire.h>
 
-// initialize the library with the numbers of the interface pins
-LiquidCrystal lcd(12, 11, 2, 7, 8, 9, 10);
-
-
 const byte DEVADDR = 0x50; //Address of the EEPROM
-byte msg[2]; //
+
+LiquidCrystal lcd(12, 11, 2, 7, 8, 9, 10); // initialize the library with the numbers of the interface pins
 
 int val=0; //Contains the analog data on pin 
 
+//define used pin
 int potentiometerPin = 2; //Analog input
 int readbuttonPin = 5; //digital
 int writebuttonPin = 4; //digital
+int dumpPin=3; //digital
 
+Seeprom eeprom(DEVADDR); //create the eeprom object
 
-//Write multiple bytes on EEPROM
-void eeprom_write_page(byte deviceaddress, unsigned eeaddr,
-const byte * data, byte length)
-{
-  // Three lsb of Device address byte are bits 8-10 of eeaddress
-  byte devaddr = deviceaddress | ((eeaddr >> 8) & 0x07);
-  byte addr    = eeaddr;
-  Wire.beginTransmission(devaddr);
-  Wire.write(int(addr));
-  for (int i = 0; i < length; i++) {
-    Wire.write(data[i]);
-  }
-  Wire.endTransmission();
-  delay(10);
-}
-
-//Read a buffer from EEPROM
-int eeprom_read_buffer(byte deviceaddr, unsigned eeaddr,
-byte * buffer, byte length)
-{
-  // Three lsb of Device address byte are bits 8-10 of eeaddress
-  byte devaddr = deviceaddr | ((eeaddr >> 8) & 0x07);
-  byte addr    = eeaddr;
-
-  Wire.beginTransmission(devaddr);
-  Wire.write(int(addr));
-  Wire.endTransmission();
-
-  Wire.requestFrom(devaddr, length);
-  int i;
-  for (i = 0; i < length && Wire.available(); i++) {
-    buffer[i] = Wire.read();
-  }
-  return i;
-}
-
-
+//
 //I use this function to print on my "strange" 16x1 LCD Display. If you have a "normal" display you can use the lcd.print() function
+//
 void  LCDprint(String data){
   String buffer;
   String white="                ";
@@ -79,6 +47,9 @@ void  LCDprint(String data){
   lcd.print(buffer);
 }
 
+//
+// SETUP
+//
 void setup(){
   // set up the LCD's number of rows and columns: 
   lcd.begin(16, 2);
@@ -87,43 +58,42 @@ void setup(){
   //set pin mode for pin 5 (read) and pin 4 (write)
   pinMode(readbuttonPin, INPUT);
   pinMode(writebuttonPin, INPUT);
+  pinMode(dumpPin, INPUT_PULLUP);
 
   // initialize the serial communications:
   Serial.begin(9600);
-  Wire.begin();
-
+  
+  //Connect digital pin 3 to GND and reset to dump memory to serial
+  if (digitalRead(dumpPin)==LOW){
+     LCDprint("Dumping memory");
+     eeprom.dump(0,2048);
+  }  
   // print a welcome message and wait 2 seconds
   LCDprint("Welcome!");
   delay(2000);
 }
 
-
+//
+// LOOP
+//
 void loop()
 {
   //Controls the read button
   if(digitalRead(readbuttonPin)==HIGH){
-    byte buffer[2];
-    int val;
+    int valeep;
     //Read from the EEPROM
-    eeprom_read_buffer(DEVADDR, 0, buffer, sizeof(buffer));
-    val=buffer[1];
-    val=((val << 8) | buffer[0]);
-
+    valeep=eeprom.readInt16(0);
     //print the read data on Serial
-    Serial.println(String(val));
+    Serial.println(String(valeep));
     //write the EEPROM read value on the LCD display
-    LCDprint(String(val));
+    LCDprint(String(valeep));
     delay(1500);
   }
 
   //Controls the write button
   if(digitalRead(writebuttonPin)==HIGH){
     //Write data to EEPROM
-    msg[0] = (byte) (val & 0xFF);
-    msg[1] = (byte) ((val >> 8) & 0xFF);
-
-    //write data to EEPROM
-    eeprom_write_page(DEVADDR, 0x000, msg, sizeof(msg));
+    eeprom.writeInt16(0,val);
     Serial.println("Memory written");
     LCDprint("Memory written.");
 
@@ -142,4 +112,3 @@ void loop()
   //write the read value on the LCD display
   LCDprint(String(val));
 }
-
