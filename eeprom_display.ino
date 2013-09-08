@@ -19,7 +19,7 @@ int readbuttonPin = 5; //digital
 int writebuttonPin = 4; //digital
 int dumpPin=3; //digital
 
-Seeprom eeprom(DEVADDR); //create the eeprom object
+Seeprom eeprom(DEVADDR, 2048); //create the eeprom object
 
 //
 //I use this function to print on my "strange" 16x1 LCD Display. If you have a "normal" display you can use the lcd.print() function
@@ -66,7 +66,7 @@ void setup(){
   //Connect digital pin 3 to GND and reset to dump memory to serial
   if (digitalRead(dumpPin)==LOW){
      LCDprint("Dumping memory");
-     eeprom.dump(0,2048);
+     eeprom.dump(0);
   }  
   // print a welcome message and wait 2 seconds
   LCDprint("Welcome!");
@@ -82,7 +82,7 @@ void loop()
   if(digitalRead(readbuttonPin)==HIGH){
     int valeep;
     //Read from the EEPROM
-    valeep=eeprom.readInt16(0);
+    valeep=eeprom.readInt(0);
     //print the read data on Serial
     Serial.println(String(valeep));
     //write the EEPROM read value on the LCD display
@@ -93,7 +93,7 @@ void loop()
   //Controls the write button
   if(digitalRead(writebuttonPin)==HIGH){
     //Write data to EEPROM
-    eeprom.writeInt16(0,val);
+    eeprom.writeInt(0,val);
     Serial.println("Memory written");
     LCDprint("Memory written.");
 
